@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html>
   <head>
+    <meta charset="UTF-8">
     <title>ESP Fish feeder</title>
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <link rel="stylesheet" type="text/css" href="style.css">
@@ -9,8 +10,15 @@
   </head>
   <body>
     <div class="topnav">
-      <h1>ESP Fisch feeder</h1>
+        <h1>Alimentador de peces</h1>
+        <h2>Tiempo en la ESP : <span id = "servertime"> </span></h2>
+        <ul >
+          <li><a class="menubar" href="index.html"> <i class="fas fa-home"></i>Home</a></li>
+          <li><a class="menubar" href="wifimanager.html"><i class = "fas fa-wifi"></i>Cambiar wifi</a></li>
+          <li><a class="menubar" href="time.html"><i class = "fas fa-clock"></i>Corregir hora</a></li>
+        </ul>
     </div>
+    
     <div class="content">
       <div class="card-grid">
         <div class="card">
@@ -19,9 +27,138 @@
             <a href="on"><button class="button-on">ON</button></a>
             <a href="off"><button class="button-off">OFF</button></a>
           </p>
-          <p class="state">State: %STATE%</p>
+          <p class="state" >Estado: <span id="valve1">%STATE%</span></p>
+          <p class="state" >Cantidad depositada: <span id="deposited1">0</span>L</p>
+          <p class="Alarmtext">
+            <a>Alarma1<input class="alarminput" type="time" id="changealarm1.1" name="changealarm1.1"> </a>
+            <a>Alarma2<input class="alarminput" type="time" id="changealarm1.2" name="changealarm1.2"> </a>
+            <a>Alarma3<input class="alarminput" type="time" id="changealarm1.3" name="changealarm1.3"> </a>
+          </p>
+        </div>
+        
+      </div>
+      <div class="card-grid">
+          <p>
+            <a>         </a>
+          </p>
+      </div>
+        <div class="card-grid">
+        <div class="card">
+          <p class="card-title"><i class="fas fa-fish"></i> Valvula 2</p>
+          <p>
+            <a href="on2"><button class="button-on">ON</button></a>
+            <a href="off2"><button class="button-off">OFF</button></a>
+          </p>
+          <p class="state" >State: <span id="valve2">%STATE2%</span></p>
+          <p class="state" >Cantidad depositada: <span id="deposited2">0</span>L</p>
+           <p class="Alarmtext">
+            <a>Alarma1<input class="alarminput" type="time" id="changealarm2.1" name="changealarm2.1"> </a>
+            <a>Alarma2<input class="alarminput" type="time" id="changealarm2.2" name="changealarm2.2"> </a>
+            <a>Alarma3<input class="alarminput" type="time" id="changealarm2.3" name="changealarm2.3"> </a>
+          </p>
         </div>
       </div>
     </div>
+    <script>
+      const alarm1_1 = document.getElementById("changealarm1.1");
+      const alarm1_2 = document.getElementById("changealarm1.2");
+      const alarm1_3 = document.getElementById("changealarm1.3");
+
+      const alarm2_1 = document.getElementById("changealarm2.1");
+      const alarm2_2 = document.getElementById("changealarm2.2");
+      const alarm2_3 = document.getElementById("changealarm2.3");
+      //adds event to check when the alarms value is changed
+      alarm1_1.addEventListener("keypress", function(event) {
+        if (event.key === "Enter") {
+            event.preventDefault(); // Prevent default form submission if inside a form
+            //sends the input value
+            const inputValue = alarm1_1.value;
+            console.log("Input submitted:", inputValue);
+            // Clear the input field after sending
+            alarm1_1.value = ""; 
+        }
+      });
+      alarm1_2.addEventListener("keypress", function(event) {
+        if (event.key === "Enter") {
+            event.preventDefault(); // Prevent default form submission if inside a form
+            //sends the input value
+            const inputValue = alarm1_2.value;
+            console.log("Input submitted:", inputValue);
+            // Clear the input field after sending
+            alarm1_2.value = ""; 
+        }
+      });
+      alarm1_3.addEventListener("keypress", function(event) {
+        if (event.key === "Enter") {
+            event.preventDefault(); // Prevent default form submission if inside a form
+            //sends the input value
+            const inputValue = alarm1_3.value;
+            console.log("Input submitted:", inputValue);
+            // Clear the input field after sending
+            alarm1_3.value = ""; 
+        }
+      });
+      alarm2_1.addEventListener("keypress", function(event) {
+        if (event.key === "Enter") {
+            event.preventDefault(); // Prevent default form submission if inside a form
+            //sends the input value
+            const inputValue = alarm2_1.value;
+            console.log("Input submitted:", inputValue);
+            // Clear the input field after sending
+            alarm2_1.value = ""; 
+        }
+      });
+      alarm2_2.addEventListener("keypress", function(event) {
+        if (event.key === "Enter") {
+            event.preventDefault(); // Prevent default form submission if inside a form
+            //sends the input value
+            const inputValue = alarm2_2.value;
+            console.log("Input submitted:", inputValue);
+            // Clear the input field after sending
+            alarm2_2.value = ""; 
+        }
+      });
+      alarm2_3.addEventListener("keypress", function(event) {
+        if (event.key === "Enter") {
+            event.preventDefault(); // Prevent default form submission if inside a form
+            //sends the input value
+            const inputValue = alarm2_3.value;
+            console.log("Input submitted:", inputValue);
+            // Clear the input field after sending
+            alarm2_3.value = ""; 
+        }
+      });
+      //adds event listener to receive requests from the ESP32 
+      if (!!window.EventSource) {
+        var source = new EventSource('/events');
+
+        source.addEventListener('open', function(e) {
+          console.log("Events Connected");
+        }, false);
+        source.addEventListener('message', function(e) {
+          console.log("message", e.data);
+        }, false)
+        source.addEventListener('valve1', function(e) {
+          console.log("valve1", e.data);
+          document.getElementById("valve1").innerHTML = e.data;
+        }, false);
+        source.addEventListener('valve2', function(e) {
+          console.log("valve2", e.data);
+          document.getElementById("valve2").innerHTML = e.data;
+        }, false);
+        source.addEventListener('time', function(e) {
+          console.log("time", e.data);
+          document.getElementById("servertime").innerHTML = e.data;
+        }, false);
+        source.addEventListener('deposited1', function(e) {
+          console.log("deposited2", e.data);
+          document.getElementById("deposited1").innerHTML = e.data;
+        }, false);
+        source.addEventListener('deposited2', function(e) {
+          console.log("deposited2", e.data);
+          document.getElementById("deposited2").innerHTML = e.data;
+        }, false);
+      }
+    </script>
   </body>
 </html>

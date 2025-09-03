@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Configurar tiempo</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="icon" href="data:,">
+  <link rel="stylesheet" type="text/css" href="style.css">
+  <link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.7.2/css/all.css" integrity="sha384-fnmOCqbTlWIlj8LyTjo7mOUStjsKC4pOpQbqyi7RrhN7udi9RwhKkMHpvLbHG9Sr" crossorigin="anonymous">
+</head>
+<body>
+  <div class="topnav">
+    <h1>Configurar tiempo</h1>
+    <h2>Tiempo en la ESP : <span id = "servertime"> </span></h2>
+    <ul >
+          <li><a class="menubar" href="index.html"> <i class="fas fa-home"></i>Home</a></li>
+          <li><a class="menubar" href="wifimanager.html"><i class = "fas fa-wifi"></i>Cambiar wifi</a></li>
+          <li><a class="menubar" href="time.html"><i class = "fas fa-clock"></i>Corregir hora</a></li>
+        </ul>
+  <div class="content">
+    <div class="card-grid">
+      <div class="card">
+        <button onclick="myFunc()" class="button-setdate" >Fecha y hora actual</button>
+        <form action="/" method="POST">
+          <p>
+            <label for = "year">Año</label>
+            <input type="text" id ="year" name="year"><br>
+            <label for = "month">Mes</label>
+            <input type="text" id ="month" name="month"><br>
+            <label for = "day">Dia</label>
+            <input type="text" id ="day" name="day"><br>
+            <label for="hour">Hora</label>
+            <input type="text" id ="hour" name="hour"><br>
+            <label for="min">Min</label>
+            <input type="text" id ="min" name="min"><br>
+            <input type ="submit" value ="Submit">
+          </p>
+        </form>
+      </div>
+    </div>
+  </div>
+  <script>
+      function myFunc()  {
+        var now = new Date();
+        var year = now.getFullYear();
+        var month = now.getUTCMonth();
+        var day = now.getDay();
+        var hour = now.getHours();
+        var minutes = now.getMinutes();
+        var YearToedit =document.getElementById('year');
+        YearToedit.value =year;
+        var MonthToedit =document.getElementById('month');
+        MonthToedit.value =month;
+        var DayToedit =document.getElementById('day');
+        DayToedit.value =day;
+        var HourToedit =document.getElementById('hour');
+        HourToedit.value =hour;
+        var MinToedit =document.getElementById('min');
+        MinToedit.value =minutes;
+    }
+  </script>
+</body>
+</html>

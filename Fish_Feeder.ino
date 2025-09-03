@@ -7,6 +7,9 @@
 
 AsyncWebServer server(80);
 
+// Create an Event Source on /events
+AsyncEventSource events("/events");
+
 // Search for parameter in HTTP POST request
 const char* PARAM_INPUT_1 = "ssid";
 const char* PARAM_INPUT_2 = "pass";
@@ -18,6 +21,12 @@ String ssid;
 String pass;
 String ip;
 String gateway;
+
+String year;
+String month;
+String day;
+String hour;
+String minute;
 
 // File paths to save input values permanently
 const char* ssidPath = "/ssid.txt";
@@ -68,6 +77,8 @@ volatile bool close2nd = false;
 volatile bool ResetLCD1 = false;
 volatile bool ResetLCD2= false;
 
+
+
 // Sensor constants and variables
 const int measureInterval = 500;
 volatile int pulseConter1;
@@ -87,16 +98,19 @@ volatile float dt1;
 volatile float dt2;
 volatile float t01;
 volatile float t02;
-const int MaxToFeed= 10;
+//Define max quantity of litters to feed
+volatile int MaxToFeed= 10;
 //Define hours where the thanks must be openned
-const int HoursTank1[2] = {18,21};
-const int HoursTank2[2] = {17,20};
-//Define minutes where the thank must be openned
-const int MinTank1[2] = {30,0};
-const int MinTank2[2] = {30,0};
-// Define the second where the tank must be openned
-const int SecTank1[2] = {30,0};
-const int SecTank2[2] = {30,0};
+volatile int HoursTank1[3] = {18,21,2};
+volatile int HoursTank2[3] = {17,20,2};
+//Define minutes when the thank must be openned
+volatile int MinTank1[3] = {30,0,0};
+volatile int MinTank2[3] = {30,0,0};
+// Define the second when the tank must be openned
+volatile int SecTank1[3] = {30,0,0};
+volatile int SecTank2[3] = {30,0,0};
+
+
 
 //---INTERRUPTION FUNCTIONS--------------
 
@@ -195,17 +209,92 @@ void setup() {
     });
     server.serveStatic("/", LittleFS, "/");
     
-    // Route to set GPIO state to HIGH
+    // Route to set first valve state to HIGH
     server.on("/on", HTTP_GET, [](AsyncWebServerRequest *request) {
       is1stopen = true;
       request->send(LittleFS, "/index.html", "text/html", false, processor);
     });
 
-    // Route to set GPIO state to LOW
+    // Route to set first valve state to LOW
     server.on("/off", HTTP_GET, [](AsyncWebServerRequest *request) {
       is1stopen = false;
       request->send(LittleFS, "/index.html", "text/html", false, processor);
     });
+    // Route to set second valve state to HIGH
+    server.on("/on2", HTTP_GET, [](AsyncWebServerRequest *request) {
+      is2ndopen = true;
+      request->send(LittleFS, "/index.html", "text/html", false, processor);
+    });
+    // Route to set second valve state to LOW
+    server.on("/off2", HTTP_GET, [](AsyncWebServerRequest *request) {
+      is2ndopen = false;
+      request->send(LittleFS, "/index.html", "text/html", false, processor);
+    });
+    // Handle Web Server Events
+    events.onConnect([](AsyncEventSourceClient *client){
+      if(client->lastId()){
+        Serial.printf("Client reconnected! Last message ID that it got is: %u\n", client->lastId());
+      }
+      // send event with message "hello!", id current millis
+      // and set reconnect delay to 1 second
+      client->send("hello!", NULL, millis(), 10000);
+    });
+   
+    server.on("/", HTTP_POST, [](AsyncWebServerRequest *request) {
+      int params = request->params();
+      for(int i=0;i<params;i++){
+        const AsyncWebParameter* p = request->getParam(i);
+        if(p->isPost()){
+          // HTTP POST ssid value
+          if (p->name() == PARAM_INPUT_1) {
+            ssid = p->value().c_str();
+            Serial.print("SSID set to: ");
+            Serial.println(ssid);
+            // Write file to save value
+            writeFile(LittleFS, ssidPath, ssid.c_str());
+          }
+          // HTTP POST pass value
+          if (p->name() == PARAM_INPUT_2) {
+            pass = p->value().c_str();
+            Serial.print("Password set to: ");
+            Serial.println(pass);
+            // Write file to save value
+            writeFile(LittleFS, passPath, pass.c_str());
+          }
+           
+          // HTTP POST year value
+          if (p->name() == "year") {
+            year = p->value().c_str();
+          }
+          // HTTP POST pass value
+          if (p->name() == "month") {
+            month = p->value().c_str();
+            
+          }
+          if (p->name() == "day") {
+            day = p->value().c_str();
+           
+          }
+          if (p->name() == "hour") {
+            hour = p->value().c_str();
+            
+          }
+          if (p->name() == "min") {
+            minute = p->value().c_str();
+            rtc.adjust(DateTime(atoi(year.c_str()),atoi(month.c_str()),atoi(day.c_str()),atoi(hour.c_str()),atoi(minute.c_str()),0));
+            Serial.println("Time adjusted to:");
+            Serial.println(year+"-"+month+"-"+day+"- "+ hour+":"+minute);
+          }
+          
+        }
+      }
+      request->send(200, "text/plain", "Done. ESP will restart, connect to your router and go to IP address: " + ip);
+      delay(3000);
+      ESP.restart();
+    });
+    
+   
+    server.addHandler(&events);
     server.begin();
   }
   else {
@@ -278,6 +367,9 @@ void loop() {
   //Serial.println("OK");
   //Reads the time from the RTC module
   DateTime now = rtc.now();
+  char buf1[] = "YYYY-MM-DDThh:mm:ss";
+  events.send(String(now.toString(buf1)).c_str(),"time",millis());
+  //events.send("ping",NULL,millis());
   /*Serial.print("ESP32 RTC Date Time: ");
   Serial.print(now.year(), DEC);
   Serial.print('/');
@@ -294,22 +386,32 @@ void loop() {
   Serial.println(now.second(), DEC);*/
   //checks the time and sets the flag to open the especific thank
   //First tank schedule
-  if(now.hour() == HoursTank1[0] && now.minute()== MinTank1[0] && now.second() == SecTank1[1]||now.hour() == HoursTank1[1] && now.minute()== MinTank1[1] && now.second() == SecTank1[1] ){
+  if(now.hour() == HoursTank1[0] && now.minute()== MinTank1[0] && now.second() == SecTank1[0]||now.hour() == HoursTank1[1] && now.minute()== MinTank1[1] && now.second() == SecTank1[1]||now.hour() == HoursTank1[2] && now.minute()== MinTank1[2] && now.second() == SecTank1[2] ){
       is1stopen = true;
+      //Sends the event to change the page label
+      events.send(String("Abierta").c_str(),"valve1",millis());
     }
   //Second tank schedule
-  if(now.hour() == HoursTank2[0] && now.minute()== MinTank2[0] && now.second() == SecTank2[1]||now.hour() == HoursTank2[1] && now.minute()== MinTank2[1] && now.second() == SecTank2[1] ){
+  if(now.hour() == HoursTank2[0] && now.minute()== MinTank2[0] && now.second() == SecTank2[0]||now.hour() == HoursTank2[1] && now.minute()== MinTank2[1] && now.second() == SecTank2[1]||now.hour() == HoursTank2[2] && now.minute()== MinTank2[2] && now.second() == SecTank2[2] ){
       is2ndopen = true;
+      //Sends the event to change the page label
+      events.send(String("Abierta").c_str(),"valve2",millis());
     }
     
   //Idle mode
  if(!is1stopen && !is2ndopen && !close1st && !close2nd){
+    //Sends the event to change the page label
+    events.send(String("Cerrada").c_str(),"valve1",millis());
+    events.send(String("Cerrada").c_str(),"valve2",millis());
+    //Sends the event to monitor the depposited food
+    events.send(String(Liters1).c_str(),"deposited1",millis());
+    events.send(String(Liters2).c_str(),"deposited2",millis());
     digitalWrite(open1stvalve,LOW);
     digitalWrite(open2ndvalve,LOW);
     lcd.setCursor(0,0);
     lcd.print("Tanques cerrados");
     lcd.setCursor(0,1); 
-    char buf1[] = "hh:mm";
+    char buf1[] = "YYYY-MM-DDThh:mm:ss";
     
     lcd.print(String(now.toString(buf1))+String("           "));
     ResetLCD1 = true;
@@ -321,18 +423,25 @@ void loop() {
    }
     //closing first tank mode
      else if (close1st && !is1stopen ||Liters1>= MaxToFeed){
+      //Sends the event to change the page label
+      events.send(String("Cerrada").c_str(),"valve1",millis());
       digitalWrite(open1stvalve,LOW);
-     close1st = false;   //Enters here when Feed Limit is reached or the button to close is pressed and reset the corresponding flags
-     is1stopen = false;
+      close1st = false;   //Enters here when Feed Limit is reached or the button to close is pressed and reset the corresponding flags
+      is1stopen = false;
       lcd.setCursor(0,0);
       lcd.print("Cerrando T1     ");
       ResetLCD2 = true;
       delay(500);
       Liters1 =0;
+      
     }
     //closing second tank mode
      else if (close2nd && !is2ndopen||Liters2>= MaxToFeed){
+      //Sends the event to change the page label
+      events.send(String("Cerrada").c_str(),"valve2",millis());
       digitalWrite(open2ndvalve,LOW);
+      //Sends the event to monitor the depposited food
+      events.send(String(Liters2).c_str(),"deposited2",millis());
       close2nd = false; //Enters here when Feed Limit is reached or the button to close is pressed and reset the corresponding flags
       is2ndopen= false;
       ResetLCD1 = true;
@@ -340,6 +449,7 @@ void loop() {
       lcd.print("Cerrando T2    ");
       delay(500);
       Liters2 =0;
+      
     }
     //Both tanks openned simultaneously
     else if(is1stopen && is2ndopen&& Liters1<= MaxToFeed&& Liters2<= MaxToFeed){
@@ -349,6 +459,13 @@ void loop() {
         ResetLCD1 = false;
         ResetLCD2 = false;
     }
+        //Sends the event to change the page label
+    events.send(String("Abierta").c_str(),"valve1",millis());
+        //Sends the event to change the page label
+    events.send(String("Abierta").c_str(),"valve2",millis());
+    //Sends the event to monitor the depposited food
+    events.send(String(Liters1).c_str(),"deposited1",millis());
+    events.send(String(Liters2).c_str(),"deposited2",millis());
     //opens the first valve
      digitalWrite(open1stvalve,HIGH);
      //opens the second valve
@@ -383,11 +500,14 @@ void loop() {
     //only the first tank is open
   else if(is1stopen&& Liters1<= MaxToFeed){
     //Serial.println("¡Botón1 presionado!");
+    //Sends the event to change the page label
+    events.send(String("Abierta").c_str(),"valve1",millis());
+     //Sends the event to monitor the depposited food
+    events.send(String(Liters1).c_str(),"deposited1",millis());
     //opens the first valve
     digitalWrite(open1stvalve,HIGH);
     if(!close1st||ResetLCD1){
-      //cleans what was previously written on the LCD only once 
-     
+    //cleans what was previously written on the LCD only once 
      clearLCD();
      lcd.setCursor(0,0);
      lcd.print("T1: ");
@@ -397,11 +517,7 @@ void loop() {
      is1stopen = true;
     }
     //Starts reading the flux sensor value
-    //Create loop to meassure the ammount of food depposited on the thank
-//Replace delay with that and don't forget to reset the open flag
-     // Serial.println("¡Botón1 presionado!");
       frequency1 = GetFrequency1();
-
       caudal_L_m1=frequency1/factorK; //calculamos el caudal en L/m
       dt1 = millis()-t01;
       t01 = millis();
@@ -416,10 +532,13 @@ void loop() {
    else if(is2ndopen&& Liters2<= MaxToFeed){
     //Serial.println("¡Botón2 presionado!");
     //opens the second valve
+        //Sends the event to change the page label
+    events.send(String("Abierta").c_str(),"valve2",millis());
+     //Sends the event to monitor the depposited food
+    events.send(String(Liters2).c_str(),"deposited2",millis());
     digitalWrite(open2ndvalve,HIGH);
     if(!close2nd||ResetLCD2){
       //cleans what was previously written on the LCD only once
-      
       clearLCD();
       lcd.setCursor(0,1);
       lcd.print("T2: ");
@@ -530,14 +649,24 @@ bool initWiFi() {
 
 // Replaces placeholder with LED state value
 String processor(const String& var) {
-  if(var == "STATE") {
+  /*if(var == "STATE") {
     if(digitalRead(open1stvalve)) {
-      ledState = "ON";
+      ledState = "Abierta";
     }
     else {
-      ledState = "OFF";
+      ledState = "Cerrada";
     }
-    return ledState;
+    
   }
+  else if(var == "STATE2") {
+      if(digitalRead(open2ndvalve)) {
+        ledState = "Abierta";
+      }
+      else {
+        ledState = "Cerrada";
+      }
+      
+  }*/
+  //return ledState;
   return String();
 }
