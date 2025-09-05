@@ -4,7 +4,13 @@
 #include <ESPAsyncWebServer.h>
 #include <AsyncTCP.h>
 #include "LittleFS.h"
+//#include <husarnet.h>
 
+// Sttrings to join husarnet
+/*#define HOSTNAME "esp32-arduino-webserver"
+#define JOIN_CODE "fc94:b01d:1803:8dd8:b293:5c7d:7639:932a/cdr74faaMF6HWY2W7RK5Ns"
+*/
+//HusarnetClient husarnet;
 AsyncWebServer server(80);
 
 // Create an Event Source on /events
@@ -16,17 +22,14 @@ const char* PARAM_INPUT_2 = "pass";
 /*const char* PARAM_INPUT_3 = "ip";
 const char* PARAM_INPUT_4 = "gateway";
 */
+//Host name
+
 //Variables to save values from HTML form
 String ssid;
 String pass;
-String ip;
-String gateway;
 
-String year;
-String month;
-String day;
-String hour;
-String minute;
+
+
 
 // File paths to save input values permanently
 const char* ssidPath = "/ssid.txt";
@@ -43,23 +46,19 @@ IPAddress localGateway;
 IPAddress subnet(255, 255, 0, 0);
 */
 // Timer variables
-unsigned long previousMillis = 0;
-const long interval = 10000;  // interval to wait for Wi-Fi connection (milliseconds)
+unsigned int previousMillis = 0;
+const int interval = 10000;  // interval to wait for Wi-Fi connection (milliseconds)
 
 // Set LED GPIO
 const int ledPin = 2;
 // Stores LED state
 
-String ledState;
+//String ledState;
 
 // LCD inicialization
 LiquidCrystal_I2C lcd(0x27, 16, 2); // I2C address 0x27, 20 column and 4 rows
 RTC_DS3231 rtc;
-
- 
 // LCD constants
-#define COLS 16 // LCD columns
-#define ROWS 2 // LCD rows
 //Valve outputs
 const int open1stvalve = 32;      
 const int open2ndvalve = 33;
@@ -72,7 +71,12 @@ volatile bool is2ndopen = false;
 //Flags to indicate closing
 volatile bool close1st = false;
 volatile bool close2nd = false;
-
+//Light output
+const int Light = 25;
+// Light input
+const int turnLight =23;
+// flag to turn on or off the light
+volatile bool OnOffLight = false;
 //Flags to reset what's written on the LCD
 volatile bool ResetLCD1 = false;
 volatile bool ResetLCD2= false;
@@ -80,24 +84,22 @@ volatile bool ResetLCD2= false;
 
 
 // Sensor constants and variables
-const int measureInterval = 500;
-volatile int pulseConter1;
-volatile int pulseCounter2;
+volatile int pulseCounter1;
+volatile int pulseCounter2 ;
 
+//Date variables
+String year;
+String month;
+String day;
+String hour;
+String minute;
 // YF-S201
 const float factorK = 7.5;
 const int stSensor = 34;
 const int ndSensor = 35;
-volatile float frequency1;
-volatile float frequency2;
-volatile float caudal_L_m1;
-volatile float caudal_L_m2;
 volatile float Liters1;
 volatile float Liters2;
-volatile float dt1;
-volatile float dt2;
-volatile float t01;
-volatile float t02;
+
 //Define max quantity of litters to feed
 volatile int MaxToFeed= 10;
 //Define hours where the thanks must be openned
@@ -109,6 +111,13 @@ volatile int MinTank2[3] = {30,0,0};
 // Define the second when the tank must be openned
 volatile int SecTank1[3] = {30,0,0};
 volatile int SecTank2[3] = {30,0,0};
+//Light alarm
+volatile int HoursLight[2] ={20,0};
+volatile int MinLight[2] = {0,0};
+volatile int SecLight[2] = {0,0};
+//Flags to send alarm value
+volatile bool isAlarmchanged = false;
+
 
 
 
@@ -116,7 +125,7 @@ volatile int SecTank2[3] = {30,0,0};
 
 void CountPulses1()
 { 
-  pulseConter1++;  //incrementamos la variable de pulsos
+  pulseCounter1++;  //incrementamos la variable de pulsos
 } 
 void CountPulses2()
 { 
@@ -124,13 +133,15 @@ void CountPulses2()
 } 
 float GetFrequency1()
 {
-  pulseConter1 = 0;
+  int measureInterval = 500;
+  pulseCounter1 =0;
   interrupts();
   delay(measureInterval);
-  return (float)pulseConter1 * 1000 / measureInterval;
+  return (float)pulseCounter1 * 1000 / measureInterval;
 }
 float GetFrequency2()
 {
+  int measureInterval = 500;
   pulseCounter2 = 0;
   interrupts();
   delay(measureInterval);
@@ -144,7 +155,10 @@ void OpenRead1(){
 void OpenRead2(){
     is2ndopen = !is2ndopen;
   }
-
+//turns on or of the light
+void TurnLIGHT(){
+  OnOffLight =!OnOffLight;
+}
 //-------------------------------MAIN FUNCTION-----------------------------------  
 void setup() {
   // initialize LCD
@@ -154,25 +168,30 @@ void setup() {
   //initializes outputs and inputs
   pinMode(open1stvalve, OUTPUT);
   pinMode(open2ndvalve, OUTPUT);
+  pinMode(Light,OUTPUT);
   pinMode(openclose1, INPUT);
   pinMode(openclose2, INPUT);
   pinMode(stSensor, INPUT);
   pinMode(ndSensor, INPUT);
+  pinMode(turnLight,INPUT);
+
   digitalWrite(open1stvalve,LOW);
   digitalWrite(open2ndvalve,LOW);
+  digitalWrite(Light,LOW);
+
   //Initializes interruptions for buttons;
   attachInterrupt(digitalPinToInterrupt(openclose1), OpenRead1, FALLING);
   attachInterrupt(digitalPinToInterrupt(openclose2), OpenRead2, FALLING);
+  attachInterrupt(digitalPinToInterrupt(turnLight), TurnLIGHT, FALLING);
   attachInterrupt(digitalPinToInterrupt(stSensor), CountPulses1, RISING);
   attachInterrupt(digitalPinToInterrupt(ndSensor), CountPulses2, RISING);
   //Serial to debug dont forget to take it out on the final version
   Serial.begin(115200);
   // variable asignment to perform later calculations on the amount of food fed
-  t01 = millis();
-  t02 = millis();
+
   Liters1 = 0;
   Liters2=0;
-   Wire.begin();
+  Wire.begin();
   //-----------RTC module setup----------------------
    if (! rtc.begin()) {
     Serial.println("RTC module is NOT found");
@@ -203,6 +222,7 @@ void setup() {
   // Serial.println(gateway);
 
   if(initWiFi()) {
+    
     // Route for root / web page
     server.on("/", HTTP_GET, [](AsyncWebServerRequest *request) {
       request->send(LittleFS, "/index.html", "text/html", false, processor);
@@ -218,7 +238,7 @@ void setup() {
     // Route to set first valve state to LOW
     server.on("/off", HTTP_GET, [](AsyncWebServerRequest *request) {
       is1stopen = false;
-      request->send(LittleFS, "/index.html", "text/html", false, processor);
+     request->send(LittleFS, "/index.html", "text/html", false, processor);
     });
     // Route to set second valve state to HIGH
     server.on("/on2", HTTP_GET, [](AsyncWebServerRequest *request) {
@@ -230,6 +250,16 @@ void setup() {
       is2ndopen = false;
       request->send(LittleFS, "/index.html", "text/html", false, processor);
     });
+    //Route to set light on
+    server.on("/on3", HTTP_GET, [](AsyncWebServerRequest *request) {
+      OnOffLight = true;
+      request->send(LittleFS, "/index.html", "text/html", false, processor);
+    });
+     //Route to set light of
+    server.on("/off3", HTTP_GET, [](AsyncWebServerRequest *request) {
+      OnOffLight = false;
+      request->send(LittleFS, "/index.html", "text/html", false, processor);
+    });
     // Handle Web Server Events
     events.onConnect([](AsyncEventSourceClient *client){
       if(client->lastId()){
@@ -237,13 +267,18 @@ void setup() {
       }
       // send event with message "hello!", id current millis
       // and set reconnect delay to 1 second
-      client->send("hello!", NULL, millis(), 10000);
+      String ipadd = WiFi.localIP().toString(); 
+      events.send(ipadd.c_str(),"getipaddress",millis());
+      isAlarmchanged = true;
     });
    
     server.on("/", HTTP_POST, [](AsyncWebServerRequest *request) {
+
       int params = request->params();
       for(int i=0;i<params;i++){
+
         const AsyncWebParameter* p = request->getParam(i);
+        Serial.println(p->name());
         if(p->isPost()){
           // HTTP POST ssid value
           if (p->name() == PARAM_INPUT_1) {
@@ -264,38 +299,43 @@ void setup() {
            
           // HTTP POST year value
           if (p->name() == "year") {
-            year = p->value().c_str();
+            year=p->value().c_str();
           }
           // HTTP POST pass value
           if (p->name() == "month") {
-            month = p->value().c_str();
+            month=p->value();
             
           }
           if (p->name() == "day") {
-            day = p->value().c_str();
+            day= p->value();
            
           }
           if (p->name() == "hour") {
-            hour = p->value().c_str();
+            hour=p->value();
             
           }
           if (p->name() == "min") {
-            minute = p->value().c_str();
+            minute= p->value();
             rtc.adjust(DateTime(atoi(year.c_str()),atoi(month.c_str()),atoi(day.c_str()),atoi(hour.c_str()),atoi(minute.c_str()),0));
             Serial.println("Time adjusted to:");
-            Serial.println(year+"-"+month+"-"+day+"- "+ hour+":"+minute);
+            Serial.println(year);Serial.println(month);Serial.println(day);Serial.println(hour);Serial.println(minute);
+          }
+          if (p->name()== "changealarm1.1"){
+            HoursTank1[0] = p->value().toInt();
+            Serial.println("Time adjusted to:");
+            Serial.println(HoursTank1[0]);
+
           }
           
         }
       }
-      request->send(200, "text/plain", "Done. ESP will restart, connect to your router and go to IP address: " + ip);
-      delay(3000);
-      ESP.restart();
+      request->send(200, "/index.html", "text/html");
     });
-    
    
     server.addHandler(&events);
     server.begin();
+    String ipadd = WiFi.localIP().toString(); 
+    events.send(ipadd.c_str(),"getipaddress",millis());
   }
   else {
     // Connect to Wi-Fi network with SSID and password
@@ -354,36 +394,84 @@ void setup() {
           //Serial.printf("POST[%s]: %s\n", p->name().c_str(), p->value().c_str());
         }
       }
-      request->send(200, "text/plain", "Done. ESP will restart, connect to your router and go to IP address: " + ip);
+      request->send(200, "text/plain", "Done. ESP will restart, connect to your router and go to IP address: ");
       delay(3000);
       ESP.restart();
     });
+     // Join the Husarnet network
+  /*husarnet.join(HOSTNAME, JOIN_CODE);
+
+  while(!husarnet.isJoined()) {
+    Serial.println("Waiting for Husarnet network...");
+    delay(1000);
+  }
+  Serial.println("Husarnet network joined");
+
+  Serial.print("Husarnet IP: ");
+  Serial.println(husarnet.getIpAddress().c_str());*/
+
     server.begin();
   }
 }
 
  
 void loop() {
+  
+  float frequency1;
+  float frequency2;
+  float caudal_L_m1;
+  float caudal_L_m2;
+  float dt1;
+  float dt2;
+  float t01;
+  float t02;
+  t01 = millis();
+  t02 = millis();
   //Serial.println("OK");
   //Reads the time from the RTC module
   DateTime now = rtc.now();
   char buf1[] = "YYYY-MM-DDThh:mm:ss";
   events.send(String(now.toString(buf1)).c_str(),"time",millis());
-  //events.send("ping",NULL,millis());
-  /*Serial.print("ESP32 RTC Date Time: ");
-  Serial.print(now.year(), DEC);
-  Serial.print('/');
-  Serial.print(now.month(), DEC);
-  Serial.print('/');
-  Serial.print(now.day(), DEC);
-  Serial.print(" (");
-  Serial.print(now.dayOfTheWeek());
-  Serial.print(") ");
-  Serial.print(now.hour(), DEC);
-  Serial.print(':');
-  Serial.print(now.minute(), DEC);
-  Serial.print(':');
-  Serial.println(now.second(), DEC);*/
+  if (isAlarmchanged){
+    char buf2 [5];
+
+    
+      sprintf(buf2, "%02d:%02d", HoursTank1[0],MinTank1[0]);
+      events.send(buf2,"alarm1_1",millis());
+      Serial.println("alarm1_1");
+      sprintf(buf2, "%02d:%02d", HoursTank1[1],MinTank1[1]);
+      events.send(buf2,"alarm1_2",millis());
+      Serial.println("alarm1_2");
+      sprintf(buf2, "%02d:%02d", HoursTank1[2],MinTank1[2]);
+      events.send(buf2,"alarm1_2",millis());
+      Serial.println("alarm1_2");
+    //Alarm 2
+      sprintf(buf2, "%02d:%02d", HoursTank2[0],MinTank2[0]);
+      events.send(buf2,"alarm2_1",millis());
+      sprintf(buf2, "%02d:%02d", HoursTank2[1],MinTank2[1]);
+      events.send(buf2,"alarm2_2",millis());
+      sprintf(buf2, "%02d:%02d", HoursTank2[2],MinTank2[2]);
+      events.send(buf2,"alarm2_3",millis());
+
+     //Alarm 3
+      sprintf(buf2, "%02d:%02d", HoursLight[0],MinLight[0]);
+      events.send(buf2,"alarm3_1",millis());
+      sprintf(buf2, "%02d:%02d", HoursLight[1],MinLight[1]);
+      events.send(buf2,"alarm3_2",millis());
+      
+    isAlarmchanged = false;
+  }
+
+  //checks light flag to turn it off or on
+  if(OnOffLight||now.hour() == HoursLight[0]&& now.minute()==MinLight[0]&& now.second()==SecLight[0]||now.hour() == HoursLight[1]&& now.minute()==MinLight[1]&& now.second()==SecLight[1]){
+    digitalWrite(ledPin,HIGH);
+    digitalWrite(Light,HIGH);
+    events.send("Encendida","LightState",millis());
+  }else if(!OnOffLight){
+    digitalWrite(ledPin,LOW);
+    digitalWrite(Light,LOW);
+    events.send("Apagada","LightState",millis());
+  }
   //checks the time and sets the flag to open the especific thank
   //First tank schedule
   if(now.hour() == HoursTank1[0] && now.minute()== MinTank1[0] && now.second() == SecTank1[0]||now.hour() == HoursTank1[1] && now.minute()== MinTank1[1] && now.second() == SecTank1[1]||now.hour() == HoursTank1[2] && now.minute()== MinTank1[2] && now.second() == SecTank1[2] ){
@@ -644,6 +732,7 @@ bool initWiFi() {
   }
 
   Serial.println(WiFi.localIP());
+
   return true;
 }
 

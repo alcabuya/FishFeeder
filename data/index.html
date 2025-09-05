@@ -32,17 +32,13 @@
           <p class="Alarmtext">
             <a>Alarma1<input class="alarminput" type="time" id="changealarm1.1" name="changealarm1.1"> </a>
             <a>Alarma2<input class="alarminput" type="time" id="changealarm1.2" name="changealarm1.2"> </a>
-            <a>Alarma3<input class="alarminput" type="time" id="changealarm1.3" name="changealarm1.3"> </a>
           </p>
+          <p class ="Alarmtext">
+            <a>Alarma3<input class="alarminput" type="time" id="changealarm1.3" name="changealarm1.3"> </a> 
+          </p>
+            
+          
         </div>
-        
-      </div>
-      <div class="card-grid">
-          <p>
-            <a>         </a>
-          </p>
-      </div>
-        <div class="card-grid">
         <div class="card">
           <p class="card-title"><i class="fas fa-fish"></i> Valvula 2</p>
           <p>
@@ -54,8 +50,33 @@
            <p class="Alarmtext">
             <a>Alarma1<input class="alarminput" type="time" id="changealarm2.1" name="changealarm2.1"> </a>
             <a>Alarma2<input class="alarminput" type="time" id="changealarm2.2" name="changealarm2.2"> </a>
-            <a>Alarma3<input class="alarminput" type="time" id="changealarm2.3" name="changealarm2.3"> </a>
           </p>
+            <p class="Alarmtext">
+              <a>Alarma3<input class="alarminput" type="time" id="changealarm2.3" name="changealarm2.3"> </a>
+            </p>
+            
+            
+          
+        </div>
+        
+      </div>
+      <div class="card-grid">
+          <p>
+            <a>         </a>
+          </p>
+      </div>
+        <div class="card-grid">
+        <div class="card">
+          <p class="card-title"><i class="fas fa-lightbulb"></i> Luz</p>
+          <p>
+            <a href="on3"><button class="button-on">ON</button></a>
+            <a href="off3"><button class="button-off">OFF</button></a>
+          </p>
+          <p class="state" >State: <span id="LightState">%STATE3%</span></p>
+           <p class="Alarmtext">
+            <a>Alarma1<input class="alarminput" type="time" id="changealarm3.1" name="changealarm3.2"> </a>
+            <a>Alarma2<input class="alarminput" type="time" id="changealarm3.2" name="changealarm3.2"> </a>
+          </p>          
         </div>
       </div>
     </div>
@@ -67,11 +88,19 @@
       const alarm2_1 = document.getElementById("changealarm2.1");
       const alarm2_2 = document.getElementById("changealarm2.2");
       const alarm2_3 = document.getElementById("changealarm2.3");
+
+      const alarm3_1 = document.getElementById("changealarm3.1");
+      const alarm3_2 = document.getElementById("changealarm3.2");
+
+      let ipaddres;
       //adds event to check when the alarms value is changed
       alarm1_1.addEventListener("keypress", function(event) {
         if (event.key === "Enter") {
-            event.preventDefault(); // Prevent default form submission if inside a form
-            //sends the input value
+            //Separates the alarm input into two variables
+            const timeString = alarm1_1.value; // e.g., "14:30"
+            const [hours, minutes] = timeString.split(':').map(Number);
+            //Post the two variables so it can be changed on the ESP32
+
             const inputValue = alarm1_1.value;
             console.log("Input submitted:", inputValue);
             // Clear the input field after sending
@@ -80,7 +109,7 @@
       });
       alarm1_2.addEventListener("keypress", function(event) {
         if (event.key === "Enter") {
-            event.preventDefault(); // Prevent default form submission if inside a form
+            //event.preventDefault(); // Prevent default form submission if inside a form
             //sends the input value
             const inputValue = alarm1_2.value;
             console.log("Input submitted:", inputValue);
@@ -90,7 +119,7 @@
       });
       alarm1_3.addEventListener("keypress", function(event) {
         if (event.key === "Enter") {
-            event.preventDefault(); // Prevent default form submission if inside a form
+            //event.preventDefault(); // Prevent default form submission if inside a form
             //sends the input value
             const inputValue = alarm1_3.value;
             console.log("Input submitted:", inputValue);
@@ -100,7 +129,7 @@
       });
       alarm2_1.addEventListener("keypress", function(event) {
         if (event.key === "Enter") {
-            event.preventDefault(); // Prevent default form submission if inside a form
+            //event.preventDefault(); // Prevent default form submission if inside a form
             //sends the input value
             const inputValue = alarm2_1.value;
             console.log("Input submitted:", inputValue);
@@ -110,7 +139,7 @@
       });
       alarm2_2.addEventListener("keypress", function(event) {
         if (event.key === "Enter") {
-            event.preventDefault(); // Prevent default form submission if inside a form
+            //event.preventDefault(); // Prevent default form submission if inside a form
             //sends the input value
             const inputValue = alarm2_2.value;
             console.log("Input submitted:", inputValue);
@@ -120,7 +149,7 @@
       });
       alarm2_3.addEventListener("keypress", function(event) {
         if (event.key === "Enter") {
-            event.preventDefault(); // Prevent default form submission if inside a form
+            //event.preventDefault(); // Prevent default form submission if inside a form
             //sends the input value
             const inputValue = alarm2_3.value;
             console.log("Input submitted:", inputValue);
@@ -128,35 +157,101 @@
             alarm2_3.value = ""; 
         }
       });
+       alarm3_1.addEventListener("keypress", function(event) {
+        if (event.key === "Enter") {
+            //event.preventDefault(); // Prevent default form submission if inside a form
+            //sends the input value
+            const inputValue = alarm3_1.value;
+            console.log("Input submitted:", inputValue);
+            // Clear the input field after sending
+            alarm3_1.value = ""; 
+        }
+      });
+      alarm3_2.addEventListener("keypress", function(event) {
+        if (event.key === "Enter") {
+            //event.preventDefault(); // Prevent default form submission if inside a form
+            //sends the input value
+            const inputValue = alarm3_2.value;
+            console.log("Input submitted:", inputValue);
+            // Clear the input field after sending
+            alarm3_2.value = ""; 
+        }
+      });
       //adds event listener to receive requests from the ESP32 
       if (!!window.EventSource) {
         var source = new EventSource('/events');
-
+        source.addEventListener('getipaddress',function(e){
+          ipaddres = e.data;
+          console.log("Ipadrress=", ipaddres);
+        }, false);
         source.addEventListener('open', function(e) {
           console.log("Events Connected");
         }, false);
         source.addEventListener('message', function(e) {
           console.log("message", e.data);
         }, false)
+        //updates the  valve state
         source.addEventListener('valve1', function(e) {
-          console.log("valve1", e.data);
+          //console.log("valve1", e.data);
           document.getElementById("valve1").innerHTML = e.data;
         }, false);
         source.addEventListener('valve2', function(e) {
-          console.log("valve2", e.data);
+          //console.log("valve2", e.data);
           document.getElementById("valve2").innerHTML = e.data;
         }, false);
+        //Updates the time on the webpage
         source.addEventListener('time', function(e) {
-          console.log("time", e.data);
+          //console.log("time", e.data);
           document.getElementById("servertime").innerHTML = e.data;
         }, false);
+        //updates the depossited ammount of food
         source.addEventListener('deposited1', function(e) {
-          console.log("deposited2", e.data);
+          //console.log("deposited2", e.data);
           document.getElementById("deposited1").innerHTML = e.data;
         }, false);
         source.addEventListener('deposited2', function(e) {
-          console.log("deposited2", e.data);
+          //console.log("deposited2", e.data);
           document.getElementById("deposited2").innerHTML = e.data;
+        }, false);
+        //Reads  the alarm values
+        source.addEventListener('alarm1_1', function(e) {
+          console.log("alarm1_1", e.data);
+          document.getElementById("changealarm1.1").value = e.data;
+        }, false);
+        source.addEventListener('alarm1_2', function(e) {
+          console.log("alarm1_2", e.data);
+          document.getElementById("changealarm1.2").value = e.data;
+        }, false);
+        source.addEventListener('alarm1_3', function(e) {
+          console.log("alarm1_3", e.data);
+          document.getElementById("changealarm1.3").value = e.data;
+        }, false);
+        source.addEventListener('alarm2_1', function(e) {
+          console.log("alarm2_1", e.data);
+          document.getElementById("changealarm2.1").value = e.data;
+        }, false);
+        source.addEventListener('alarm2_2', function(e) {
+          console.log("alarm2_2", e.data);
+          document.getElementById("changealarm2.2").value = e.data;
+        }, false);
+        source.addEventListener('alarm2_3', function(e) {
+          console.log("alarm2_3", e.data);
+          document.getElementById("changealarm2.3").value = e.data;
+        }, false);
+        //Light alarms
+        source.addEventListener('alarm3_1', function(e) {
+          console.log("alarm3_1", e.data);
+          document.getElementById("changealarm3.1").value = e.data;
+        }, false);
+        source.addEventListener('alarm3_2', function(e) {
+          console.log("alarm3_2", e.data);
+          document.getElementById("changealarm3.2").value = e.data;
+        }, false);
+        //Light state
+        
+        source.addEventListener('LightState', function(e) {
+          console.log("LightState", e.data);
+          document.getElementById("LightState").innerHTML = e.data;
         }, false);
       }
     </script>
